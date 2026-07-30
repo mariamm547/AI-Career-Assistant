@@ -4,15 +4,15 @@ app.py
 AI Career Assistant — Streamlit frontend.
 
 Upload a resume (PDF) and get:
-  1. Resume Skills Analysis — extracted skills as badges + raw text
-  2. Job Recommendation      — top 10 matching jobs as cards
-  3. Missing Skills          — skill gaps grouped by category + priority
-
+  1. Resume Skills Analysis 
+  2. Job Recommendation      
+  3. Missing Skills         
+  
 This file only calls backend.py's three functions:
     backend.extract_skills_from_resume(pdf_file)
     backend.recommend_jobs(skills)
     backend.recommend_missing_skills(skills)
-No AI/matching logic lives here — it's a pure presentation layer.
+
 """
 
 import time
@@ -21,9 +21,7 @@ import streamlit as st
 import backend
 
 
-# ---------------------------------------------------------------------------
-# Page config (must be the first Streamlit call)
-# ---------------------------------------------------------------------------
+# Page config 
 st.set_page_config(
     page_title="AI Career Assistant",
     page_icon="🧭",
@@ -32,13 +30,10 @@ st.set_page_config(
 )
 
 
-# ---------------------------------------------------------------------------
 # Styling
-# ---------------------------------------------------------------------------
 def inject_css():
     st.markdown("""
     <style>
-    /* whole app */
     .stApp,
     [data-testid="stAppViewContainer"],
     [data-testid="stMain"],
@@ -47,17 +42,14 @@ def inject_css():
         background: #0F172A !important;
     }
 
-    /* top bar / header area */
     header[data-testid="stHeader"] {
         background: transparent !important;
     }
 
-    /* removes the extra empty space at the top */
     .block-container {
         padding-top: 0.8rem !important;
     }
 
-    /* optional: if toolbar is visible */   
     [data-testid="stToolbar"] {
         background: transparent !important;
     }
@@ -68,7 +60,6 @@ def inject_css():
     st.markdown(
         """
         <style>
-        /* ---- global ---- */
         .stApp {
             background: #0F172A;
         }
@@ -79,7 +70,6 @@ def inject_css():
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
 
-        /* ---- header banner ---- */
         .app-header {
             background: linear-gradient(120deg, #4F46E5 0%, #3B82F6 50%, #06B6D4 100%);
             padding: 2.1rem 2.4rem;
@@ -102,7 +92,6 @@ def inject_css():
 
         
 
-        /* ---- sidebar ---- */
         [data-testid="stSidebar"] {
             background-color: #111827;
         }
@@ -124,7 +113,6 @@ def inject_css():
             color: #FFFFFF !important;
         }
 
-        /* ---- metric cards ---- */
         .metric-card {
             border-radius: 16px;
             padding: 1.1rem 1.3rem;
@@ -144,7 +132,6 @@ def inject_css():
             color: #FFFFFF;
         }
 
-        /* ---- badges/tags ---- */
         .badge-row {
             display: flex;
             flex-wrap: wrap;
@@ -172,7 +159,6 @@ def inject_css():
             border: 1px solid #10B981;
         }
 
-        /* ---- priority tags ---- */
         .priority-tag {
             display: inline-block;
             padding: 0.2rem 0.65rem;
@@ -197,7 +183,6 @@ def inject_css():
             border: 1px solid #22C55E;
         }
 
-        /* ---- job card ---- */
         .job-title {
             font-size: 1.25rem;
             font-weight: 800;
@@ -216,7 +201,6 @@ def inject_css():
             margin-top: 0.7rem;
         }
 
-        /* ---- progress bar ---- */
         .stProgress > div > div > div > div {
             background: linear-gradient(90deg, #4F46E5, #06B6D4) !important;
         }
@@ -224,7 +208,6 @@ def inject_css():
             background-color: #FFFFFF !important;
         }
 
-        /* ---- upload area ---- */
         .upload-hint {
             text-align: center;
             color: #FFFFFF;
@@ -242,7 +225,6 @@ def inject_css():
             border-color: #4F46E5;
         }
 
-        /* ---- buttons ---- */
         .stButton > button {
             background-color: #4F46E5;
             color: #FFFFFF;
@@ -256,7 +238,6 @@ def inject_css():
             background-color: #4338CA;
         }
 
-        /* ---- alerts / messages ---- */
         div.stAlert {
             border-radius: 8px;
             background-color: #1E293B;
@@ -266,12 +247,10 @@ def inject_css():
             background-color: transparent;
         }
 
-        /* ---- dividers ---- */
         hr {
             border-color: #FFFFFF;
         }
 
-        /* ---- expanders ---- */
         .streamlit-expanderHeader {
             color: #0F172A;
         }
@@ -323,7 +302,7 @@ def metric_card(label, value, color_from, color_to):
     )
 
 
-# ---------------------------------------------------------------------------
+
 # Header
 # ---------------------------------------------------------------------------
 def show_header():
@@ -339,7 +318,6 @@ def show_header():
     )
 
 
-# ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
 def show_sidebar():
@@ -374,7 +352,6 @@ def show_sidebar():
     return mode
 
 
-# ---------------------------------------------------------------------------
 # Upload section
 # ---------------------------------------------------------------------------
 def upload_resume():
@@ -403,7 +380,6 @@ def upload_resume():
     return uploaded_file
 
 
-# ---------------------------------------------------------------------------
 # Analysis (calls the backend)
 # ---------------------------------------------------------------------------
 def run_analysis(resume_file):
@@ -430,7 +406,6 @@ def run_analysis(resume_file):
     st.success("✅ Resume analyzed successfully!")
 
 
-# ---------------------------------------------------------------------------
 # Output — metrics
 # ---------------------------------------------------------------------------
 def show_metrics(analysis):
@@ -448,7 +423,6 @@ def show_metrics(analysis):
         metric_card("📊 Average Match", f"{avg_match}%", "#4F46E5", "#06B6D4")
 
 
-# ---------------------------------------------------------------------------
 # Mode 1 — Resume Skills Analysis
 # ---------------------------------------------------------------------------
 def show_skills(analysis):
@@ -464,7 +438,6 @@ def show_skills(analysis):
         st.text(resume_data.get("raw_text", "") or "No text extracted.")
 
 
-# ---------------------------------------------------------------------------
 # Mode 2 — Job Recommendation
 # ---------------------------------------------------------------------------
 def show_jobs(analysis):
@@ -527,7 +500,6 @@ def show_jobs(analysis):
             )
 
 
-# ---------------------------------------------------------------------------
 # Mode 3 — Missing Skills
 # ---------------------------------------------------------------------------
 def show_missing_skills(analysis):
@@ -550,7 +522,6 @@ def show_missing_skills(analysis):
                 )
 
 
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
