@@ -698,18 +698,17 @@ Based on a large job-market dataset, the following jobs were recommended.
    Missing Skills:
    {', '.join(job['missing_skills']) if job['missing_skills'] else 'None'}
 """
-    prompt += """
+    prompt += """Write:
+1. A short career summary
+2. Why these jobs fit the candidate
+3. Three skills to learn next
+4. One final recommendation
 
-Please provide:
-
-1. A short summary of the student's strengths.
-2. Explain why each job is a good fit.
-3. Rank the jobs from most suitable to least suitable.
-4. Identify the most valuable missing skills.
-5. Recommend a learning roadmap to improve employability.
-6. Mention which job should be targeted first and why.
-
-Keep the answer professional, concise, and easy for a university student to understand.
+Important:
+- Do not repeat the prompt
+- Do not echo these instructions
+- Return only the final answer
+Keep it concise and practical.
 """
     return prompt
 
