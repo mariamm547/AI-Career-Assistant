@@ -10,7 +10,7 @@ langchain-classic>=0.0.8
 langchain-core>=0.1.0
 kagglehub>=0.1.0
 pandas>=2.0.0
-faiss-cpu>=1.7.4   # or faiss-gpu on Kaggle
+faiss-cpu>=1.7.4   
 
 # Flask API server
 Flask>=2.3.0
