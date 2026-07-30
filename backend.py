@@ -3,54 +3,17 @@ backend.py
 ==========
 AI Career Assistant — backend logic.
 
-This module is a refactor of the original research/notebook script
-(project.py). All of the original logic is preserved:
-
   - PDF text extraction (PyPDF2)
   - Resume field/skill extraction using Mistral-Nemo-Instruct-2407 via
-    a LangChain StructuredOutputParser
+    a LangChain Structured-Output-Parser
   - Loading + cleaning the four Kaggle datasets (company, job-titles,
     data-jobs, resume-jobs)
   - The frequency-filtered job matching engine (a skill only counts as
     "required" for a job title once it clears MIN_SKILL_FREQUENCY across
-    at least MIN_POSTINGS postings) — this replaced an earlier "union of
-    every skill ever mentioned" approach that made common titles balloon
-    to hundreds of required skills
+    at least MIN_POSTINGS postings) 
   - The Mistral-based career-advice report (build_job_recommendation_prompt
     + generate_text + format_mistral_output)
 
-What changed turning it into a backend module (all behavior-preserving
-unless noted):
-
-  1. Everything that used to run at import time (model loading, dataset
-     downloads) now happens lazily, the first time it's actually needed,
-     and is cached afterward. Running `import backend` no longer takes
-     10+ minutes or requires a GPU.
-  2. Three public entry points were added to match the required
-     interface: extract_skills_from_resume(pdf_file), recommend_jobs(skills),
-     recommend_missing_skills(skills).
-  3. `dataset_text4`'s column list had a typo ("Job Experience wRequired")
-     that would raise a pandas usecols error — the four selected columns
-     are now trimmed down to just the three actually used downstream
-     (Job Title, Industry, Key Skills), which also makes loading more
-     robust to that dataset's exact schema.
-  4. The per-job "reason" shown on the Job Recommendation cards is now a
-     fast template built from matched skills, so recommend_jobs() stays
-     instant for 10 jobs at once. The original Mistral-authored, full
-     multi-job written report (strengths / rankings / roadmap) is still
-     generated exactly as before — call generate_career_advice() for it.
-  5. `faiss`, `FAISS`, `HuggingFaceEmbeddings`, `PyPDFLoader`, and
-     `CharacterTextSplitter` were imported in the original script but
-     never exercised by the logic shown (per project notes, reserved for
-     a future RAG/vector-store layer). They're kept as optional imports
-     below so this module still loads without them if that layer isn't
-     installed yet.
-
-Heavy third-party imports (torch/transformers/langchain/kagglehub) are
-wrapped in a try/except so this file can still be imported (e.g. to read
-docstrings, or from a machine without a GPU) without crashing. Calling a
-function that actually needs them will raise a clear RuntimeError if
-they're missing.
 """
 
 import re
@@ -65,8 +28,8 @@ import kagglehub
 from langchain_classic.output_parsers import StructuredOutputParser, ResponseSchema
 from langchain_core.prompts import PromptTemplate
 
-# ---------------------------------------------------------------------------
-# Dataset loading state (lazy)
+
+# Dataset loading state 
 # ---------------------------------------------------------------------------
 DATASETS_LOADED = False
 
@@ -81,8 +44,8 @@ COMPANY_TO_SECTOR = {}
 INDUSTRY_TO_COMPANIES = defaultdict(set)
 
 
-# ---------------------------------------------------------------------------
-# Mistral API helper (centralised HTTP calls with error handling & timeout)
+
+# Mistral API helper 
 # ---------------------------------------------------------------------------
 MISTRAL_API_URL = "https://pamphlet-sleek-glowworm.ngrok-free.dev/generate"
 MISTRAL_API_KEY = "pass123"
@@ -113,8 +76,7 @@ def _call_mistral_api(prompt, max_length=4500, timeout=90, retries=3):
             continue
     raise RuntimeError("Mistral API request failed after retries.")
 
-# ---------------------------------------------------------------------------
-# PDF text extraction (lightweight, no ML deps)
+# PDF text extraction 
 # ---------------------------------------------------------------------------
 def extract_text_from_pdf(pdf_file):
     """Extract raw text from a PDF.
@@ -129,7 +91,6 @@ def extract_text_from_pdf(pdf_file):
     return full_text
 
 
-# ---------------------------------------------------------------------------
 # Structured resume-field extraction (name/email/education/skills/experience)
 # ---------------------------------------------------------------------------
 def _build_output_parser():
@@ -241,8 +202,7 @@ def extract_skills_from_resume(pdf_file):
     }
 
 
-# ---------------------------------------------------------------------------
-# Skill / job-title cleaning (unchanged from original)
+# Skill / job-title cleaning 
 # ---------------------------------------------------------------------------
 SKILL_ALIASES = {
     "py": "python",
@@ -405,7 +365,6 @@ def normalize_resume_jobs(df):
     return df
 
 
-# ---------------------------------------------------------------------------
 # Dataset loading + the frequency-filtered job-matching engine
 # ---------------------------------------------------------------------------
 # A skill only counts as "required" for a job if it appears in at least this
@@ -468,8 +427,6 @@ def _ensure_datasets_loaded():
     file4 = _get_csv_path(csv_path4)
     dataset_text4 = pd.read_csv(file4, usecols=["Job Title", "Industry", "Key Skills"])
 
-    # ... rest of the function (cleaning and matching) unchanged ...
-    # --- company sector + industry lookups (dataset 1 + dataset 4) ---
     company_df = normalize_company_dataset(dataset_text1)
     for _, row in company_df.iterrows():
         company, sector = row["company_name"], row["business_sector"]
@@ -483,7 +440,6 @@ def _ensure_datasets_loaded():
         if job and industry:
             JOB_TO_INDUSTRY[job] = industry
 
-    # --- frequency-filtered job -> required-skills matching ---
     job_skill_counts = defaultdict(Counter)  # job -> {skill: how many postings mention it}
     job_posting_counts = defaultdict(int)
     job_to_companies = defaultdict(set)
@@ -498,7 +454,6 @@ def _ensure_datasets_loaded():
         job = clean_job_title(row["job_title"])
         record_posting(job, parse_skills_string(row["skills_required"]))
 
-    # job_title_short is already a cleaned/canonical title in this dataset
     for _, row in dataset_text3.iterrows():
         job = clean_job_title(row["job_title_short"])
         record_posting(job, parse_skills_string(row["job_skills"]))
@@ -547,8 +502,7 @@ def get_dataset_stats():
 
 def _build_reason(job_title, matched, missing):
     """Fast, template-based explanation shown on each job card (no LLM call —
-    keeps recommend_jobs() instant for 10 jobs at a time). See
-    generate_career_advice() for the full Mistral-written report."""
+    keeps recommend_jobs() instant for 10 jobs at a time)."""
     if matched:
         top = ", ".join(s.title() for s in sorted(matched)[:3])
         return f"Your experience strongly matches {job_title.title()} because of your background in {top}."
@@ -560,8 +514,6 @@ def _build_reason(job_title, matched, missing):
 
 def recommend_jobs(skills, top_n=10):
     """
-    Public entry point #2.
-
     Matches a list of candidate skills against the frequency-filtered
     job -> required-skills map. Returns a list of dicts (best match first):
 
@@ -598,7 +550,6 @@ def recommend_jobs(skills, top_n=10):
     return results[:top_n]
 
 
-# ---------------------------------------------------------------------------
 # Missing-skills categorization (new — combines the same matching engine
 # with a category map so Mode 3 of the UI has something to group)
 # ---------------------------------------------------------------------------
@@ -632,8 +583,6 @@ def _categorize_skill(skill):
 
 def recommend_missing_skills(skills, top_n_jobs=10):
     """
-    Public entry point #3.
-
     Aggregates the missing skills across the top job matches, ranks each by
     how many of those top jobs require it, and groups them into learning
     categories with a High/Medium/Low priority. Returns:
@@ -667,11 +616,8 @@ def recommend_missing_skills(skills, top_n_jobs=10):
     return dict(categorized)
 
 
-# ---------------------------------------------------------------------------
-# Optional bonus: the full Mistral-authored career-advice report, exactly as
-# built in the original script (build_job_recommendation_prompt + generate_text
-# + format_mistral_output). Not required by the UI spec, but wired up in
-# app.py as an extra "AI Career Advisor Report" section under Job Recommendation.
+# the full Mistral-authored career-advice report (build_job_recommendation_prompt + generate_text
+# + format_mistral_output). 
 # ---------------------------------------------------------------------------
 def build_job_recommendation_prompt(job_recommendations, student_skills):
     """Convert recommended jobs into a prompt for Mistral."""
